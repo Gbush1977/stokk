@@ -1,3 +1,5 @@
+import type { GeminiScanItem, GeminiScanWarning, ShelfScanImage } from "../../src/services/geminiScannerService.ts";
+
 export type ScanMode = "shelf" | "color-tab";
 
 export type DetectionStatus = "full" | "partial" | "low-stock" | "analyzing";
@@ -53,4 +55,14 @@ export interface InventoryReportResponseBody {
   stockroomFullnessPercent: number;
   criticalCount: number;
   reorderDeficits: ReorderDeficit[];
+}
+
+export interface ScanGeminiRequestBody {
+  images: ShelfScanImage[];
+}
+
+export interface ScanGeminiResponseBody {
+  items: GeminiScanItem[];
+  warnings: GeminiScanWarning[];
+  detections: ScanDetectionPayload[];
 }
