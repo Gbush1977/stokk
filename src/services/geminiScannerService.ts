@@ -27,7 +27,13 @@ export interface GeminiScanResult {
 
 export class GeminiScanError extends Error {}
 
-const SYSTEM_INSTRUCTION = `You are a professional hairdressing stockroom assistant. You will receive a
+export interface CatalogEntry {
+  brand: string;
+  line: string;
+  shadeCode: string;
+}
+
+const BASE_SYSTEM_INSTRUCTION = `You are a professional hairdressing stockroom assistant. You will receive a
 sequence of photos of the same salon colour shelf or rack, taken left to right
 (or top to bottom) so that consecutive photos overlap at their edges.
 
@@ -50,6 +56,41 @@ Treat the photos as one continuous sweep, not independent images:
 
 Respond only with JSON matching the supplied schema. Never invent a brand,
 line, or shade code you cannot actually read.`;
+
+const GENERIC_CATALOG_NOTICE = `You are matching visual text against a pre-loaded database catalog
+containing L'Oréal Majirel/Inoa, Wella Koleston/Illumina, and Schwarzkopf
+Igora Royal. Map whatever shade code you visually detect to the closest
+valid matching shade from this catalog to guarantee 100% data integrity.`;
+
+function buildCatalogSection(catalog: CatalogEntry[]): string {
+  if (catalog.length === 0) {
+    return GENERIC_CATALOG_NOTICE;
+  }
+
+  const byLine = new Map<string, Set<string>>();
+  for (const entry of catalog) {
+    const key = `${entry.brand} — ${entry.line}`;
+    const shades = byLine.get(key) ?? new Set<string>();
+    shades.add(entry.shadeCode);
+    byLine.set(key, shades);
+  }
+
+  const lines = Array.from(byLine.entries()).map(
+    ([key, shades]) => `- ${key}: ${Array.from(shades).join(", ")}`,
+  );
+
+  return `${GENERIC_CATALOG_NOTICE}
+
+Valid catalog entries (brand — line: shade codes). Only these brand/line/shade
+combinations exist in the database — if what you read is close to one of these
+but not an exact character match, snap it to the closest entry below rather
+than inventing a new code:
+${lines.join("\n")}`;
+}
+
+function buildSystemInstruction(catalog: CatalogEntry[]): string {
+  return `${BASE_SYSTEM_INSTRUCTION}\n\n${buildCatalogSection(catalog)}`;
+}
 
 const RESPONSE_SCHEMA: Schema = {
   type: Type.OBJECT,
@@ -96,7 +137,10 @@ function getClient(): GoogleGenAI {
   return cachedClient;
 }
 
-export async function scanShelfImages(images: ShelfScanImage[]): Promise<GeminiScanResult> {
+export async function scanShelfImages(
+  images: ShelfScanImage[],
+  catalog: CatalogEntry[] = [],
+): Promise<GeminiScanResult> {
   if (images.length === 0) {
     throw new GeminiScanError("At least one image is required to scan a shelf");
   }
@@ -114,7 +158,7 @@ export async function scanShelfImages(images: ShelfScanImage[]): Promise<GeminiS
       model: MODEL,
       contents: parts,
       config: {
-        systemInstruction: SYSTEM_INSTRUCTION,
+        systemInstruction: buildSystemInstruction(catalog),
         responseMimeType: "application/json",
         responseSchema: RESPONSE_SCHEMA,
         temperature: 0,

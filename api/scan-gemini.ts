@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { GeminiScanError, scanShelfImages, toInventorySyncDetections } from "../src/services/geminiScannerService.ts";
+import { prisma } from "./_lib/prisma.ts";
 import type { ScanGeminiRequestBody, ScanGeminiResponseBody } from "./_lib/types.ts";
 
 function isValidBody(body: unknown): body is ScanGeminiRequestBody {
@@ -28,7 +29,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const result = await scanShelfImages(req.body.images);
+    const catalog = await prisma.product.findMany({
+      select: { brand: true, line: true, shadeCode: true },
+    });
+    const result = await scanShelfImages(req.body.images, catalog);
 
     const body: ScanGeminiResponseBody = {
       items: result.items,

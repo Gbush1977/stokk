@@ -10,7 +10,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const products = await prisma.product.findMany({ include: { inventory: true } });
+    const allProducts = await prisma.product.findMany({ include: { inventory: true } });
+
+    // Reference catalog products (seeded for Gemini shade-code matching) have
+    // no Inventory row until a scan actually finds one on a shelf — exclude
+    // them here so they don't show up as 0-stock "critical" deficits.
+    const products = allProducts.filter((product) => product.inventory !== null);
 
     const reorderDeficits: ReorderDeficit[] = [];
     let fullnessSum = 0;
