@@ -58,9 +58,10 @@ Respond only with JSON matching the supplied schema. Never invent a brand,
 line, or shade code you cannot actually read.`;
 
 const GENERIC_CATALOG_NOTICE = `You are matching visual text against a pre-loaded database catalog
-containing L'Oréal Majirel/Inoa, Wella Koleston/Illumina, and Schwarzkopf
-Igora Royal. Map whatever shade code you visually detect to the closest
-valid matching shade from this catalog to guarantee 100% data integrity.`;
+containing L'Oréal Majirel/Inoa, Wella Koleston/Illumina, Schwarzkopf Igora
+Royal, Goldwell Topchic, Redken Shades EQ, and Aveda Full Spectrum. Map
+whatever shade code you visually detect to the closest valid matching shade
+from this catalog to guarantee 100% data integrity.`;
 
 function buildCatalogSection(catalog: CatalogEntry[]): string {
   if (catalog.length === 0) {
@@ -81,10 +82,13 @@ function buildCatalogSection(catalog: CatalogEntry[]): string {
 
   return `${GENERIC_CATALOG_NOTICE}
 
-Valid catalog entries (brand — line: shade codes). Only these brand/line/shade
-combinations exist in the database — if what you read is close to one of these
-but not an exact character match, snap it to the closest entry below rather
-than inventing a new code:
+Valid catalog entries (brand — line: shade codes). This list is the exact,
+complete master dictionary — these are the ONLY brand/line/shade combinations
+that exist in the database. Every detection you report MUST strictly snap to
+one of the entries below: if what you read is close to one of these but not
+an exact character match, snap it to the nearest entry rather than inventing
+a new code, and never report a brand, line, or shade code that is absent
+from this list:
 ${lines.join("\n")}`;
 }
 
