@@ -12,7 +12,7 @@
  * AI calls go directly to the Anthropic API (claude-sonnet-4-20250514 with vision).
  */
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { ShelfScannerViewfinder } from "./components/ShelfScanner";
 
 // ─── BRAND COLOURS ────────────────────────────────────────────────────────────
 const C = {
@@ -30,3 +30,7 @@ const C = {
   green:   "#15803D",
   greenBg: "#F0FDF4",
 };
+
+export default function App() {
+  return <ShelfScannerViewfinder />;
+}
