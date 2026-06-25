@@ -59,7 +59,7 @@ export default function DetectionOverlay({ detections }: DetectionOverlayProps) 
             >
               <span className="shrink-0">{style.icon}</span>
               {isAnalyzing ? (
-                <span>Analyzing…</span>
+                <span>Analysing…</span>
               ) : (
                 <span className="min-w-0 truncate">
                   {detection.brand} {detection.product}{" "}

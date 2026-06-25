@@ -40,7 +40,7 @@ export default function StatusBar({
           />
         </span>
         <span className="text-[11px] font-medium tracking-wide text-white/90">
-          {isConnected ? (isScanning ? "Analyzing shelf…" : "AI ready") : "Reconnecting…"}
+          {isConnected ? (isScanning ? "Analysing shelf…" : "AI ready") : "Reconnecting…"}
         </span>
         <Wifi size={13} className="text-white/50" strokeWidth={2} />
       </div>

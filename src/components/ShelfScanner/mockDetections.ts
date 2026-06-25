@@ -47,5 +47,5 @@ export const STATUS_LABEL: Record<Detection["status"], string> = {
   full: "Full",
   partial: "Partial",
   "low-stock": "Low Stock",
-  analyzing: "Analyzing",
+  analyzing: "Analysing",
 };

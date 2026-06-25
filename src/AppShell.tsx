@@ -31,7 +31,7 @@ export default function AppShell() {
           // a shelf scan confirms stock was found and replenished to par
           next[i] = { ...item, quantity: item.parLevel + Math.round(Math.random()) };
         } else {
-          // a color-tab scan reflects tubes consumed during a client service
+          // a colour-tab scan reflects tubes consumed during a client service
           const consumed = 1 + Math.floor(Math.random() * 2);
           next[i] = { ...item, quantity: Math.max(item.quantity - consumed, 0) };
         }

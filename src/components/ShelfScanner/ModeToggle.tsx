@@ -35,7 +35,7 @@ export default function ModeToggle({ mode, onChange }: ModeToggleProps) {
         }`}
       >
         <Palette size={14} strokeWidth={2.5} />
-        Color Tab Mode
+        Colour Tab Mode
       </button>
     </div>
   );
