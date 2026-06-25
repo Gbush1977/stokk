@@ -1,0 +1,48 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Product {
+  id              String   @id @default(cuid())
+  brand            String
+  line             String
+  shadeCode        String   @map("shade_code")
+  sku              String   @unique
+  idealStockLevel  Float    @map("ideal_stock_level")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  inventory Inventory?
+  usageLogs UsageLog[]
+
+  @@unique([brand, line, shadeCode])
+  @@map("products")
+}
+
+model Inventory {
+  id              String    @id @default(cuid())
+  productId       String    @unique @map("product_id")
+  product         Product   @relation(fields: [productId], references: [id])
+  fullQuantity    Int       @default(0) @map("full_quantity")
+  partialQuantity Float     @default(0) @map("partial_quantity")
+  lastScannedAt   DateTime? @map("last_scanned_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@map("inventory")
+}
+
+model UsageLog {
+  id           String   @id @default(cuid())
+  productId    String   @map("product_id")
+  product      Product  @relation(fields: [productId], references: [id])
+  quantityUsed Float    @map("quantity_used")
+  scanMode     String   @map("scan_mode")
+  recordedAt   DateTime @default(now()) @map("recorded_at")
+
+  @@map("usage_logs")
+}
