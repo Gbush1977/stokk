@@ -1,30 +1,48 @@
+import { useEffect, useRef, useState } from "react";
 import { Download, AlertCircle } from "lucide-react";
 import type { InventoryItem } from "./types";
 import { getReorderList } from "./inventoryMetrics";
+import Toast from "../Toast";
 
 interface ReorderSheetProps {
   items: InventoryItem[];
 }
 
+const CSV_HEADER = "Brand,Product Line,Shade Code,Current Inventory,Par Level,Recommended Order Quantity";
+
 function exportOrderSheet(items: InventoryItem[]) {
   const reorderList = getReorderList(items);
-  const header = "Brand,Line,Shade,Current Qty,Par Level,Reorder Qty";
   const rows = reorderList.map(
     ({ item, reorderQty }) =>
       `${item.brand},${item.line},${item.shade},${item.quantity},${item.parLevel},${reorderQty}`,
   );
-  const csv = [header, ...rows].join("\n");
+  const csv = [CSV_HEADER, ...rows].join("\n");
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `stokk-order-sheet-${new Date().toISOString().slice(0, 10)}.csv`;
+  link.download = "stokk_reorder_sheet.csv";
   link.click();
   URL.revokeObjectURL(url);
 }
 
 export default function ReorderSheet({ items }: ReorderSheetProps) {
   const reorderList = getReorderList(items);
+  const [toastVisible, setToastVisible] = useState(false);
+  const toastTimeout = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimeout.current) window.clearTimeout(toastTimeout.current);
+    };
+  }, []);
+
+  const handleExport = () => {
+    exportOrderSheet(items);
+    setToastVisible(true);
+    if (toastTimeout.current) window.clearTimeout(toastTimeout.current);
+    toastTimeout.current = window.setTimeout(() => setToastVisible(false), 2600);
+  };
 
   if (reorderList.length === 0) {
     return (
@@ -36,6 +54,8 @@ export default function ReorderSheet({ items }: ReorderSheetProps) {
 
   return (
     <div className="flex flex-col gap-3">
+      <Toast message="Order Sheet Exported Successfully!" visible={toastVisible} />
+
       <div className="flex flex-col divide-y divide-white/5 overflow-hidden rounded-2xl border border-white/10 bg-white/5 backdrop-blur-md">
         {reorderList.map(({ item, reorderQty, critical }) => (
           <div key={item.id} className="flex items-center justify-between gap-3 px-4 py-3">
@@ -59,7 +79,7 @@ export default function ReorderSheet({ items }: ReorderSheetProps) {
 
       <button
         type="button"
-        onClick={() => exportOrderSheet(items)}
+        onClick={handleExport}
         className="flex items-center justify-center gap-2 rounded-xl bg-electric py-3 text-sm font-semibold text-white shadow-lg shadow-electric/30 transition active:scale-[0.98]"
       >
         <Download size={16} strokeWidth={2.5} />

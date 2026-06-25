@@ -1,12 +1,15 @@
 import { RefreshCw } from "lucide-react";
-import { MOCK_INVENTORY } from "./mockInventory";
+import type { InventoryItem } from "./types";
 import InventoryHealthWidgets from "./InventoryHealthWidgets";
 import InventoryTable from "./InventoryTable";
 import ReorderSheet from "./ReorderSheet";
 
-export default function Dashboard() {
-  const items = MOCK_INVENTORY;
+interface DashboardProps {
+  items: InventoryItem[];
+  lastScanAt: number | null;
+}
 
+export default function Dashboard({ items, lastScanAt }: DashboardProps) {
   return (
     <div className="h-full overflow-y-auto bg-zinc-950 px-4 pb-8 pt-[max(env(safe-area-inset-top),20px)]">
       <header className="mb-5 flex items-center justify-between">
@@ -16,7 +19,7 @@ export default function Dashboard() {
         </div>
         <span className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] text-white/60">
           <RefreshCw size={12} />
-          2 min ago
+          {lastScanAt ? "Synced just now" : "Awaiting first scan"}
         </span>
       </header>
 

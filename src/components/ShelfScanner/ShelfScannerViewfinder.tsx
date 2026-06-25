@@ -8,9 +8,10 @@ import BottomActionBar from "./BottomActionBar";
 
 interface ShelfScannerViewfinderProps {
   onClose?: () => void;
+  onScanComplete?: (mode: ScanMode) => void;
 }
 
-export default function ShelfScannerViewfinder({ onClose }: ShelfScannerViewfinderProps) {
+export default function ShelfScannerViewfinder({ onClose, onScanComplete }: ShelfScannerViewfinderProps) {
   const [mode, setMode] = useState<ScanMode>("shelf");
   const [flashOn, setFlashOn] = useState(false);
   const [gridOn, setGridOn] = useState(true);
@@ -27,8 +28,11 @@ export default function ShelfScannerViewfinder({ onClose }: ShelfScannerViewfind
     setIsScanning(true);
     setShowFlashFx(true);
     window.setTimeout(() => setShowFlashFx(false), 180);
-    window.setTimeout(() => setIsScanning(false), 1600);
-  }, [isScanning]);
+    window.setTimeout(() => {
+      setIsScanning(false);
+      onScanComplete?.(mode);
+    }, 1600);
+  }, [isScanning, mode, onScanComplete]);
 
   return (
     <div className="relative h-full w-full overflow-hidden bg-zinc-950 font-sans text-white">
