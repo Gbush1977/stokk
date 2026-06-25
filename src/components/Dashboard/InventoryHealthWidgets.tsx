@@ -1,0 +1,42 @@
+import { Package, Activity, AlertTriangle } from "lucide-react";
+import type { InventoryItem } from "./types";
+import { getStockHealthPercent, getCriticalCount } from "./inventoryMetrics";
+import MetricCard from "./MetricCard";
+
+interface InventoryHealthWidgetsProps {
+  items: InventoryItem[];
+}
+
+export default function InventoryHealthWidgets({ items }: InventoryHealthWidgetsProps) {
+  const brandCount = new Set(items.map((item) => item.brand)).size;
+  const healthPct = getStockHealthPercent(items);
+  const criticalCount = getCriticalCount(items);
+
+  return (
+    <div className="flex flex-col gap-3">
+      <MetricCard
+        icon={Package}
+        label="Total Active SKUs"
+        value={String(items.length)}
+        subtitle={`Across ${brandCount} brands`}
+      />
+
+      <MetricCard icon={Activity} label="Stock Health" value={`${healthPct}%`} subtitle="Shelf-wide fill rate">
+        <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+          <div
+            className="h-full rounded-full bg-electric transition-all duration-500"
+            style={{ width: `${healthPct}%` }}
+          />
+        </div>
+      </MetricCard>
+
+      <MetricCard
+        icon={AlertTriangle}
+        iconClassName="bg-rose-400/15 text-rose-300"
+        label="Critical Restocks Flagged"
+        value={String(criticalCount)}
+        subtitle="At or below 30% of par level"
+      />
+    </div>
+  );
+}

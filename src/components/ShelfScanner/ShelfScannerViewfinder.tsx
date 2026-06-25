@@ -31,7 +31,7 @@ export default function ShelfScannerViewfinder({ onClose }: ShelfScannerViewfind
   }, [isScanning]);
 
   return (
-    <div className="relative h-dvh w-full overflow-hidden bg-zinc-950 font-sans text-white">
+    <div className="relative h-full w-full overflow-hidden bg-zinc-950 font-sans text-white">
       {/* simulated camera feed */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute inset-0 bg-[linear-gradient(180deg,#15171c_0%,#0a0b0d_55%,#050608_100%)]" />

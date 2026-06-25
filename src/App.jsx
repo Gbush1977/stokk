@@ -12,25 +12,8 @@
  * AI calls go directly to the Anthropic API (claude-sonnet-4-20250514 with vision).
  */
 
-import { ShelfScannerViewfinder } from "./components/ShelfScanner";
-
-// ─── BRAND COLOURS ────────────────────────────────────────────────────────────
-const C = {
-  navy:    "#0B1D35",
-  navyMid: "#16304F",
-  navyLt:  "#1E4678",
-  slate:   "#5A6A7E",
-  silver:  "#E4E9F0",
-  silverLt:"#F2F5F9",
-  white:   "#FFFFFF",
-  amber:   "#D97706",  // reorder warning
-  amberBg: "#FFFBEB",
-  red:     "#B91C1C",
-  redBg:   "#FEF2F2",
-  green:   "#15803D",
-  greenBg: "#F0FDF4",
-};
+import AppShell from "./AppShell";
 
 export default function App() {
-  return <ShelfScannerViewfinder />;
+  return <AppShell />;
 }
