@@ -83,7 +83,7 @@ export default function ReorderSheet({ items }: ReorderSheetProps) {
         className="flex items-center justify-center gap-2 rounded-xl bg-electric py-3 text-sm font-semibold text-white shadow-lg shadow-electric/30 transition active:scale-[0.98]"
       >
         <Download size={16} strokeWidth={2.5} />
-        Download Shopping List
+        Download Order Sheet
       </button>
     </div>
   );
