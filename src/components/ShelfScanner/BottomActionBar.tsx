@@ -1,4 +1,4 @@
-import { Images, Camera, Grid3x3 } from "lucide-react";
+import { Images, Camera, Grid3x3, CheckCheck, LoaderCircle } from "lucide-react";
 import type { ScanMode } from "./types";
 import ModeToggle from "./ModeToggle";
 
@@ -6,27 +6,51 @@ interface BottomActionBarProps {
   mode: ScanMode;
   onModeChange: (mode: ScanMode) => void;
   detectedCount: number;
+  pendingFrameCount: number;
   isScanning: boolean;
+  isSubmittingBatch: boolean;
   gridOn: boolean;
   onToggleGrid: () => void;
   onCapture: () => void;
+  onSubmitBatch: () => void;
 }
 
 export default function BottomActionBar({
   mode,
   onModeChange,
   detectedCount,
+  pendingFrameCount,
   isScanning,
+  isSubmittingBatch,
   gridOn,
   onToggleGrid,
   onCapture,
+  onSubmitBatch,
 }: BottomActionBarProps) {
   return (
     <div className="absolute inset-x-0 bottom-0 z-20 flex flex-col items-center gap-4 bg-gradient-to-t from-black/90 via-black/50 to-transparent px-5 pb-[max(env(safe-area-inset-bottom),20px)] pt-10">
-      <div className="flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-[11px] font-medium text-white/80 backdrop-blur-md">
-        <span className="h-1.5 w-1.5 rounded-full bg-mint" />
-        {detectedCount} product{detectedCount === 1 ? "" : "s"} detected
-      </div>
+      {pendingFrameCount > 0 ? (
+        <button
+          type="button"
+          onClick={onSubmitBatch}
+          disabled={isSubmittingBatch}
+          className="flex items-center gap-1.5 rounded-full bg-electric px-3.5 py-1.5 text-[11px] font-semibold text-white shadow-lg shadow-electric/40 transition active:scale-95 disabled:opacity-70"
+        >
+          {isSubmittingBatch ? (
+            <LoaderCircle size={13} strokeWidth={2.5} className="animate-spin" />
+          ) : (
+            <CheckCheck size={13} strokeWidth={2.5} />
+          )}
+          {isSubmittingBatch
+            ? "Processing batch…"
+            : `Process ${pendingFrameCount} photo${pendingFrameCount === 1 ? "" : "s"}`}
+        </button>
+      ) : (
+        <div className="flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-[11px] font-medium text-white/80 backdrop-blur-md">
+          <span className="h-1.5 w-1.5 rounded-full bg-mint" />
+          {detectedCount} product{detectedCount === 1 ? "" : "s"} detected
+        </div>
+      )}
 
       <ModeToggle mode={mode} onChange={onModeChange} />
 
@@ -42,8 +66,9 @@ export default function BottomActionBar({
         <button
           type="button"
           onClick={onCapture}
+          disabled={isSubmittingBatch}
           aria-label="Scan shelf"
-          className="relative flex h-[76px] w-[76px] items-center justify-center rounded-full transition active:scale-95"
+          className="relative flex h-[76px] w-[76px] items-center justify-center rounded-full transition active:scale-95 disabled:opacity-50"
         >
           <span
             className={`absolute inset-0 rounded-full border-[3px] border-electric ${

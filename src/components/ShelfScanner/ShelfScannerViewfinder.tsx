@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, ShieldCheck } from "lucide-react";
 import type { ScanMode } from "./types";
 import { MOCK_DETECTIONS } from "./mockDetections";
+import { checkEdgeOverlap } from "./edgeOverlap";
 import StatusBar from "./StatusBar";
 import ScanReticle from "./ScanReticle";
 import DetectionOverlay from "./DetectionOverlay";
@@ -40,7 +41,10 @@ export default function ShelfScannerViewfinder({ onClose, onScanComplete }: Shel
 
   const [cameraReady, setCameraReady] = useState(false);
   const [sessionFrames, setSessionFrames] = useState<SessionFrame[]>([]);
+  const [simulatedPendingCount, setSimulatedPendingCount] = useState(0);
   const [ghostFrameUrl, setGhostFrameUrl] = useState<string | null>(null);
+  const [overlapLocked, setOverlapLocked] = useState(false);
+  const [isSubmittingBatch, setIsSubmittingBatch] = useState(false);
   const [liveDetectionCount, setLiveDetectionCount] = useState<number | null>(null);
   const [scanError, setScanError] = useState<string | null>(null);
 
@@ -101,46 +105,82 @@ export default function ShelfScannerViewfinder({ onClose, onScanComplete }: Shel
     return { dataUrl, base64, mimeType };
   }, [cameraReady]);
 
+  const pendingFrameCount = sessionFrames.length + simulatedPendingCount;
+
   const handleModeChange = useCallback((nextMode: ScanMode) => {
     setMode(nextMode);
     setSessionFrames([]);
+    setSimulatedPendingCount(0);
     setGhostFrameUrl(null);
+    setOverlapLocked(false);
     setLiveDetectionCount(null);
     setScanError(null);
   }, []);
 
+  // Captures a single static photo and caches it client-side. This never
+  // calls the network — frames just accumulate locally until the user taps
+  // "Process batch", which is the only point we hit /api/scan-gemini.
   const handleCapture = useCallback(async () => {
-    if (isScanning) return;
+    if (isScanning || isSubmittingBatch) return;
 
     setIsScanning(true);
     setShowFlashFx(true);
     setScanError(null);
     window.setTimeout(() => setShowFlashFx(false), 180);
 
+    const previousFrameUrl = ghostFrameUrl;
     // dismiss the previous ghost the moment a new photo is taken
     setGhostFrameUrl(null);
+    setOverlapLocked(false);
 
     const frame = captureFrame();
     if (!frame) {
-      // no live camera in this environment — keep the simulated flow working
-      window.setTimeout(() => {
-        setIsScanning(false);
-        onScanComplete?.(mode);
-      }, 1200);
+      // no live camera in this environment — still let the batch UI flow work
+      setSimulatedPendingCount((count) => count + 1);
+      setIsScanning(false);
       return;
     }
 
-    // cache this frame as the alignment ghost for the next shot
     setGhostFrameUrl(frame.dataUrl);
+    setSessionFrames((prev) => [...prev, { base64: frame.base64, mimeType: frame.mimeType }]);
 
-    const nextFrames = [...sessionFrames, { base64: frame.base64, mimeType: frame.mimeType }];
-    setSessionFrames(nextFrames);
+    if (previousFrameUrl) {
+      try {
+        const { isMatch } = await checkEdgeOverlap(previousFrameUrl, frame.dataUrl);
+        if (isMatch) {
+          setOverlapLocked(true);
+          navigator.vibrate?.([40]);
+          window.setTimeout(() => setOverlapLocked(false), 1100);
+        }
+      } catch {
+        // edge check is a best-effort alignment hint, never block capture on it
+      }
+    }
+
+    setIsScanning(false);
+  }, [captureFrame, ghostFrameUrl, isScanning, isSubmittingBatch]);
+
+  // The single point where the aggregated photo batch is sent to the AI
+  // service — one request per session instead of one per photo, since each
+  // request would otherwise resend every previously captured frame too.
+  const handleSubmitBatch = useCallback(async () => {
+    if (isSubmittingBatch || pendingFrameCount === 0) return;
+
+    if (sessionFrames.length === 0) {
+      // no live camera in this environment — nothing real to send
+      setSimulatedPendingCount(0);
+      onScanComplete?.(mode);
+      return;
+    }
+
+    setIsSubmittingBatch(true);
+    setScanError(null);
 
     try {
       const response = await fetch("/api/scan-gemini", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ images: nextFrames }),
+        body: JSON.stringify({ images: sessionFrames }),
       });
 
       const payload = await response.json().catch(() => ({}));
@@ -151,12 +191,15 @@ export default function ShelfScannerViewfinder({ onClose, onScanComplete }: Shel
       const { detections } = payload as ScanGeminiResponse;
       setLiveDetectionCount(detections.length);
       onScanComplete?.(mode);
+      setSessionFrames([]);
+      setSimulatedPendingCount(0);
+      setGhostFrameUrl(null);
     } catch (err) {
       setScanError(err instanceof Error ? err.message : "Could not reach the scanner service");
     } finally {
-      setIsScanning(false);
+      setIsSubmittingBatch(false);
     }
-  }, [captureFrame, isScanning, mode, onScanComplete, sessionFrames]);
+  }, [isSubmittingBatch, mode, onScanComplete, pendingFrameCount, sessionFrames]);
 
   return (
     <div className="relative h-full w-full overflow-hidden bg-zinc-950 font-sans text-white">
@@ -185,7 +228,7 @@ export default function ShelfScannerViewfinder({ onClose, onScanComplete }: Shel
 
       {ghostFrameUrl && <GhostOverlay imageUrl={ghostFrameUrl} />}
 
-      {gridOn && <ScanReticle isScanning={isScanning} />}
+      {gridOn && <ScanReticle isScanning={isScanning} overlapLocked={overlapLocked} />}
 
       <DetectionOverlay detections={MOCK_DETECTIONS} />
 
@@ -196,6 +239,13 @@ export default function ShelfScannerViewfinder({ onClose, onScanComplete }: Shel
         onToggleFlash={() => setFlashOn((v) => !v)}
         onClose={onClose ?? (() => {})}
       />
+
+      {overlapLocked && (
+        <div className="absolute inset-x-4 top-[72px] z-20 flex items-center gap-2 rounded-xl border border-electric/50 bg-electric/20 px-3 py-2 text-[12px] font-semibold tracking-wide text-white backdrop-blur-md">
+          <ShieldCheck size={14} className="shrink-0 text-electric" strokeWidth={2.5} />
+          <span className="min-w-0 truncate">OVERLAP LOCKED · BATCH UPDATED</span>
+        </div>
+      )}
 
       {scanError && (
         <div className="absolute inset-x-4 top-[72px] z-20 flex items-center gap-2 rounded-xl border border-rose-400/40 bg-rose-950/80 px-3 py-2 text-[12px] font-medium text-rose-100 backdrop-blur-md">
@@ -208,10 +258,13 @@ export default function ShelfScannerViewfinder({ onClose, onScanComplete }: Shel
         mode={mode}
         onModeChange={handleModeChange}
         detectedCount={detectedCount}
+        pendingFrameCount={pendingFrameCount}
         isScanning={isScanning}
+        isSubmittingBatch={isSubmittingBatch}
         gridOn={gridOn}
         onToggleGrid={() => setGridOn((v) => !v)}
         onCapture={handleCapture}
+        onSubmitBatch={handleSubmitBatch}
       />
 
       {/* shutter flash */}
