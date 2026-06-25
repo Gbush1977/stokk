@@ -1,16 +1,28 @@
+import type { ReorderDeficit } from "../../../api/_lib/types.ts";
+
 export type StockStatus = "full" | "partial";
 
 export interface InventoryItem {
-  id: string;
+  sku: string;
   brand: string;
   line: string;
   shade: string;
-  quantity: number;
+  // The "half-tube" split: a sealed, full box is tracked distinctly from a
+  // partially-used backbar tube (e.g. 0.5 of a tube remaining).
+  fullUnits: number;
+  partialFraction: number;
   parLevel: number;
 }
 
-export interface ReorderEntry {
-  item: InventoryItem;
-  reorderQty: number;
-  critical: boolean;
+export interface DashboardReport {
+  items: InventoryItem[];
+  totalActiveItems: number;
+  stockroomFullnessPercent: number;
+  criticalCount: number;
+  // Prioritized for this week's wholesale order, high velocity first.
+  activeOrderSheet: ReorderDeficit[];
+  // Slow-moving deficits held back from the active order to preserve budget.
+  pendingBudgetReview: ReorderDeficit[];
 }
+
+export type { ReorderDeficit };

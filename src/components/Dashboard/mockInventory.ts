@@ -1,14 +1,26 @@
-import type { InventoryItem } from "./types";
+import type { DashboardReport, InventoryItem } from "./types";
+import { buildMockReorderDeficits, getCriticalCount, getStockHealthPercent } from "./inventoryMetrics";
 
 export const MOCK_INVENTORY: InventoryItem[] = [
-  { id: "sku-1", brand: "Redken", line: "Shades EQ", shade: "09V", quantity: 9, parLevel: 8 },
-  { id: "sku-2", brand: "L'Oréal Professionnel", line: "Majirel", shade: "6.3", quantity: 4, parLevel: 8 },
-  { id: "sku-3", brand: "Wella Professionals", line: "Koleston Perfect", shade: "7/43", quantity: 10, parLevel: 8 },
-  { id: "sku-4", brand: "Schwarzkopf", line: "Igora Royal", shade: "5-65", quantity: 2, parLevel: 8 },
-  { id: "sku-5", brand: "Goldwell", line: "Topchic", shade: "6N", quantity: 5, parLevel: 8 },
-  { id: "sku-6", brand: "Redken", line: "Shades EQ", shade: "7NA", quantity: 1, parLevel: 6 },
-  { id: "sku-7", brand: "Wella Professionals", line: "Illumina Color", shade: "8/69", quantity: 7, parLevel: 6 },
-  { id: "sku-8", brand: "L'Oréal Professionnel", line: "INOA", shade: "7.1", quantity: 2, parLevel: 8 },
-  { id: "sku-9", brand: "Schwarzkopf", line: "Igora Royal", shade: "4-99", quantity: 3, parLevel: 6 },
-  { id: "sku-10", brand: "Goldwell", line: "Elumen", shade: "BL@all", quantity: 6, parLevel: 5 },
+  { sku: "sku-1", brand: "Redken", line: "Shades EQ", shade: "09V", fullUnits: 9, partialFraction: 0, parLevel: 8 },
+  { sku: "sku-2", brand: "L'Oréal Professionnel", line: "Majirel", shade: "6.3", fullUnits: 4, partialFraction: 0, parLevel: 8 },
+  { sku: "sku-3", brand: "Wella Professionals", line: "Koleston Perfect", shade: "7/43", fullUnits: 10, partialFraction: 0, parLevel: 8 },
+  { sku: "sku-4", brand: "Schwarzkopf", line: "Igora Royal", shade: "5-65", fullUnits: 2, partialFraction: 0, parLevel: 8 },
+  { sku: "sku-5", brand: "Goldwell", line: "Topchic", shade: "6N", fullUnits: 5, partialFraction: 0, parLevel: 8 },
+  { sku: "sku-6", brand: "Redken", line: "Shades EQ", shade: "7NA", fullUnits: 1, partialFraction: 0.5, parLevel: 6 },
+  { sku: "sku-7", brand: "Wella Professionals", line: "Illumina Color", shade: "8/69", fullUnits: 7, partialFraction: 0, parLevel: 6 },
+  { sku: "sku-8", brand: "L'Oréal Professionnel", line: "INOA", shade: "7.1", fullUnits: 2, partialFraction: 0, parLevel: 8 },
+  { sku: "sku-9", brand: "Schwarzkopf", line: "Igora Royal", shade: "4-99", fullUnits: 3, partialFraction: 0, parLevel: 6 },
+  { sku: "sku-10", brand: "Goldwell", line: "Elumen", shade: "BL@all", fullUnits: 6, partialFraction: 0, parLevel: 5 },
 ];
+
+// Used when /api/inventory/report is unreachable (offline, no DB configured)
+// so the Dashboard always has something to render.
+export const MOCK_REPORT: DashboardReport = {
+  items: MOCK_INVENTORY,
+  totalActiveItems: MOCK_INVENTORY.length,
+  stockroomFullnessPercent: getStockHealthPercent(MOCK_INVENTORY),
+  criticalCount: getCriticalCount(MOCK_INVENTORY),
+  activeOrderSheet: buildMockReorderDeficits(MOCK_INVENTORY),
+  pendingBudgetReview: [],
+};

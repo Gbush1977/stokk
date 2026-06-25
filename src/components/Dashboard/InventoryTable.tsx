@@ -1,5 +1,5 @@
 import type { InventoryItem } from "./types";
-import { getStatus, isCritical } from "./inventoryMetrics";
+import { getCurrentStock, getStatus, isCritical } from "./inventoryMetrics";
 
 interface InventoryTableProps {
   items: InventoryItem[];
@@ -22,8 +22,9 @@ export default function InventoryTable({ items }: InventoryTableProps) {
             {items.map((item) => {
               const status = getStatus(item);
               const critical = isCritical(item);
+              const currentStock = getCurrentStock(item);
               return (
-                <tr key={item.id}>
+                <tr key={item.sku}>
                   <td className="px-3 py-2.5">
                     <p className="font-medium leading-tight text-white/90">{item.brand}</p>
                     <p className="text-[11px] text-white/45">{item.line}</p>
@@ -40,9 +41,11 @@ export default function InventoryTable({ items }: InventoryTableProps) {
                   </td>
                   <td className="px-3 py-2.5 text-right">
                     <p className={`font-semibold leading-tight ${critical ? "text-rose-300" : "text-white"}`}>
-                      {item.quantity} in stock
+                      {item.fullUnits} full{item.partialFraction > 0 ? ` + ${item.partialFraction} partial` : ""}
                     </p>
-                    <p className="text-[11px] text-white/40">Target: {item.parLevel}</p>
+                    <p className="text-[11px] text-white/40">
+                      {currentStock} of {item.parLevel} target
+                    </p>
                   </td>
                 </tr>
               );

@@ -6,6 +6,10 @@ interface StatusBarProps {
   flashOn: boolean;
   onToggleFlash: () => void;
   onClose: () => void;
+  // Only relevant for shelf scans — when shown, lets the user choose whether
+  // Gemini should ignore opened/partial tubes (see ShelfScannerViewfinder).
+  countFullBoxesOnly?: boolean;
+  onToggleCountFullBoxesOnly?: () => void;
 }
 
 export default function StatusBar({
@@ -14,59 +18,85 @@ export default function StatusBar({
   flashOn,
   onToggleFlash,
   onClose,
+  countFullBoxesOnly,
+  onToggleCountFullBoxesOnly,
 }: StatusBarProps) {
   return (
-    <div className="absolute inset-x-0 top-0 z-20 flex items-center justify-between gap-2 bg-gradient-to-b from-black/85 via-black/40 to-transparent px-4 pb-6 pt-[max(env(safe-area-inset-top),16px)]">
-      <button
-        type="button"
-        onClick={onClose}
-        aria-label="Close scanner"
-        className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/10 text-white backdrop-blur-md transition active:scale-90 active:bg-white/20"
-      >
-        <ChevronLeft size={20} strokeWidth={2.5} />
-      </button>
-
-      <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3 py-1.5 backdrop-blur-md">
-        <span className="relative flex h-2 w-2">
-          <span
-            className={`absolute inline-flex h-full w-full rounded-full opacity-75 ${
-              isConnected ? "bg-mint animate-ping" : "bg-rose-500"
-            }`}
-          />
-          <span
-            className={`relative inline-flex h-2 w-2 rounded-full ${
-              isConnected ? "bg-mint" : "bg-rose-500"
-            }`}
-          />
-        </span>
-        <span className="text-[11px] font-medium tracking-wide text-white/90">
-          {isConnected ? (isScanning ? "Analysing shelf…" : "AI ready") : "Reconnecting…"}
-        </span>
-        <Wifi size={13} className="text-white/50" strokeWidth={2} />
-      </div>
-
-      <div className="flex items-center gap-2">
+    <div className="absolute inset-x-0 top-0 z-20 flex flex-col gap-2 bg-gradient-to-b from-black/85 via-black/40 to-transparent px-4 pb-6 pt-[max(env(safe-area-inset-top),16px)]">
+      <div className="flex items-center justify-between gap-2">
         <button
           type="button"
-          onClick={onToggleFlash}
-          aria-label="Toggle flash"
-          aria-pressed={flashOn}
-          className={`flex h-9 w-9 items-center justify-center rounded-full border backdrop-blur-md transition active:scale-90 ${
-            flashOn
-              ? "border-electric bg-electric text-white"
-              : "border-white/10 bg-white/10 text-white active:bg-white/20"
-          }`}
-        >
-          {flashOn ? <Zap size={18} strokeWidth={2.5} /> : <ZapOff size={18} strokeWidth={2.5} />}
-        </button>
-        <button
-          type="button"
-          aria-label="Scanner settings"
+          onClick={onClose}
+          aria-label="Close scanner"
           className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/10 text-white backdrop-blur-md transition active:scale-90 active:bg-white/20"
         >
-          <Settings2 size={18} strokeWidth={2.5} />
+          <ChevronLeft size={20} strokeWidth={2.5} />
         </button>
+
+        <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3 py-1.5 backdrop-blur-md">
+          <span className="relative flex h-2 w-2">
+            <span
+              className={`absolute inline-flex h-full w-full rounded-full opacity-75 ${
+                isConnected ? "bg-mint animate-ping" : "bg-rose-500"
+              }`}
+            />
+            <span
+              className={`relative inline-flex h-2 w-2 rounded-full ${
+                isConnected ? "bg-mint" : "bg-rose-500"
+              }`}
+            />
+          </span>
+          <span className="text-[11px] font-medium tracking-wide text-white/90">
+            {isConnected ? (isScanning ? "Analysing shelf…" : "AI ready") : "Reconnecting…"}
+          </span>
+          <Wifi size={13} className="text-white/50" strokeWidth={2} />
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onToggleFlash}
+            aria-label="Toggle flash"
+            aria-pressed={flashOn}
+            className={`flex h-9 w-9 items-center justify-center rounded-full border backdrop-blur-md transition active:scale-90 ${
+              flashOn
+                ? "border-electric bg-electric text-white"
+                : "border-white/10 bg-white/10 text-white active:bg-white/20"
+            }`}
+          >
+            {flashOn ? <Zap size={18} strokeWidth={2.5} /> : <ZapOff size={18} strokeWidth={2.5} />}
+          </button>
+          <button
+            type="button"
+            aria-label="Scanner settings"
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/10 text-white backdrop-blur-md transition active:scale-90 active:bg-white/20"
+          >
+            <Settings2 size={18} strokeWidth={2.5} />
+          </button>
+        </div>
       </div>
+
+      {onToggleCountFullBoxesOnly && (
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/40 px-3 py-2 backdrop-blur-md">
+          <span className="text-[12px] font-medium tracking-wide text-white/90">Count Full Boxes Only</span>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={countFullBoxesOnly}
+            aria-label="Toggle count full boxes only"
+            onClick={onToggleCountFullBoxesOnly}
+            className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${
+              countFullBoxesOnly ? "bg-electric" : "bg-white/20"
+            }`}
+          >
+            <span
+              className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+                countFullBoxesOnly ? "translate-x-[22px]" : "translate-x-0.5"
+              }`}
+            />
+          </button>
+        </div>
+      )}
     </div>
   );
 }

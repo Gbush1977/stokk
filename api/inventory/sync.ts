@@ -51,11 +51,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         const inventory =
           scanMode === "shelf"
-            ? await tx.inventory.upsert({
-                where: { productId: product.id },
-                create: { productId: product.id, fullQuantity, partialQuantity, lastScannedAt: new Date() },
-                update: { fullQuantity, partialQuantity, lastScannedAt: new Date() },
-              })
+            ? detection.additive
+              ? await tx.inventory.upsert({
+                  where: { productId: product.id },
+                  create: { productId: product.id, fullQuantity, partialQuantity, lastScannedAt: new Date() },
+                  update: {
+                    fullQuantity: { increment: fullQuantity },
+                    partialQuantity: { increment: partialQuantity },
+                    lastScannedAt: new Date(),
+                  },
+                })
+              : await tx.inventory.upsert({
+                  where: { productId: product.id },
+                  create: { productId: product.id, fullQuantity, partialQuantity, lastScannedAt: new Date() },
+                  update: { fullQuantity, partialQuantity, lastScannedAt: new Date() },
+                })
             : await syncColorTabUsage(tx, product.id, fullQuantity, partialQuantity);
 
         updated.push({
@@ -84,7 +94,7 @@ async function syncColorTabUsage(
 ) {
   const quantityUsed = fullQuantity + partialQuantity;
 
-  await tx.usageLog.create({
+  await tx.consumptionHistory.create({
     data: { productId, quantityUsed, scanMode: "color-tab" },
   });
 

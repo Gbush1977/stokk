@@ -8,10 +8,12 @@ import ScanReticle from "./ScanReticle";
 import DetectionOverlay from "./DetectionOverlay";
 import GhostOverlay from "./GhostOverlay";
 import BottomActionBar from "./BottomActionBar";
+import ManualAdjustmentDrawer from "./ManualAdjustmentDrawer";
 
 interface ShelfScannerViewfinderProps {
   onClose?: () => void;
   onScanComplete?: (mode: ScanMode) => void;
+  onInventoryAdjusted?: () => void;
 }
 
 interface SessionFrame {
@@ -32,7 +34,7 @@ interface ScanGeminiResponse {
   detections: ScanGeminiDetection[];
 }
 
-export default function ShelfScannerViewfinder({ onClose, onScanComplete }: ShelfScannerViewfinderProps) {
+export default function ShelfScannerViewfinder({ onClose, onScanComplete, onInventoryAdjusted }: ShelfScannerViewfinderProps) {
   const [mode, setMode] = useState<ScanMode>("shelf");
   const [flashOn, setFlashOn] = useState(false);
   const [gridOn, setGridOn] = useState(true);
@@ -47,6 +49,11 @@ export default function ShelfScannerViewfinder({ onClose, onScanComplete }: Shel
   const [isSubmittingBatch, setIsSubmittingBatch] = useState(false);
   const [liveDetectionCount, setLiveDetectionCount] = useState<number | null>(null);
   const [scanError, setScanError] = useState<string | null>(null);
+  // "Count Full Boxes Only" viewfinder toggle (shelf scans only) — defaults to
+  // true so Gemini ignores opened/partial tubes unless the user explicitly
+  // wants to log backbar stock by hand via the Manual Adjustment Drawer.
+  const [countFullBoxesOnly, setCountFullBoxesOnly] = useState(true);
+  const [showAdjustmentDrawer, setShowAdjustmentDrawer] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -166,10 +173,15 @@ export default function ShelfScannerViewfinder({ onClose, onScanComplete }: Shel
   const handleSubmitBatch = useCallback(async () => {
     if (isSubmittingBatch || pendingFrameCount === 0) return;
 
+    const maybeOpenAdjustmentDrawer = () => {
+      if (mode === "shelf" && !countFullBoxesOnly) setShowAdjustmentDrawer(true);
+    };
+
     if (sessionFrames.length === 0) {
       // no live camera in this environment — nothing real to send
       setSimulatedPendingCount(0);
       onScanComplete?.(mode);
+      maybeOpenAdjustmentDrawer();
       return;
     }
 
@@ -180,7 +192,7 @@ export default function ShelfScannerViewfinder({ onClose, onScanComplete }: Shel
       const response = await fetch("/api/scan-gemini", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ images: sessionFrames }),
+        body: JSON.stringify({ images: sessionFrames, countFullBoxesOnly }),
       });
 
       const payload = await response.json().catch(() => ({}));
@@ -194,12 +206,13 @@ export default function ShelfScannerViewfinder({ onClose, onScanComplete }: Shel
       setSessionFrames([]);
       setSimulatedPendingCount(0);
       setGhostFrameUrl(null);
+      maybeOpenAdjustmentDrawer();
     } catch (err) {
       setScanError(err instanceof Error ? err.message : "Could not reach the scanner service");
     } finally {
       setIsSubmittingBatch(false);
     }
-  }, [isSubmittingBatch, mode, onScanComplete, pendingFrameCount, sessionFrames]);
+  }, [countFullBoxesOnly, isSubmittingBatch, mode, onScanComplete, pendingFrameCount, sessionFrames]);
 
   return (
     <div className="relative h-full w-full overflow-hidden bg-zinc-950 font-sans text-white">
@@ -238,21 +251,25 @@ export default function ShelfScannerViewfinder({ onClose, onScanComplete }: Shel
         flashOn={flashOn}
         onToggleFlash={() => setFlashOn((v) => !v)}
         onClose={onClose ?? (() => {})}
+        countFullBoxesOnly={mode === "shelf" ? countFullBoxesOnly : undefined}
+        onToggleCountFullBoxesOnly={mode === "shelf" ? () => setCountFullBoxesOnly((v) => !v) : undefined}
       />
 
-      {overlapLocked && (
-        <div className="absolute inset-x-4 top-[72px] z-20 flex items-center gap-2 rounded-xl border border-electric/50 bg-electric/20 px-3 py-2 text-[12px] font-semibold tracking-wide text-white backdrop-blur-md">
-          <ShieldCheck size={14} className="shrink-0 text-electric" strokeWidth={2.5} />
-          <span className="min-w-0 truncate">OVERLAP LOCKED · BATCH UPDATED</span>
-        </div>
-      )}
+      <div className={`absolute inset-x-4 z-20 flex flex-col gap-2 ${mode === "shelf" ? "top-[124px]" : "top-[72px]"}`}>
+        {overlapLocked && (
+          <div className="flex items-center gap-2 rounded-xl border border-electric/50 bg-electric/20 px-3 py-2 text-[12px] font-semibold tracking-wide text-white backdrop-blur-md">
+            <ShieldCheck size={14} className="shrink-0 text-electric" strokeWidth={2.5} />
+            <span className="min-w-0 truncate">OVERLAP LOCKED · BATCH UPDATED</span>
+          </div>
+        )}
 
-      {scanError && (
-        <div className="absolute inset-x-4 top-[72px] z-20 flex items-center gap-2 rounded-xl border border-rose-400/40 bg-rose-950/80 px-3 py-2 text-[12px] font-medium text-rose-100 backdrop-blur-md">
-          <AlertTriangle size={14} className="shrink-0" strokeWidth={2.5} />
-          <span className="min-w-0 truncate">{scanError}</span>
-        </div>
-      )}
+        {scanError && (
+          <div className="flex items-center gap-2 rounded-xl border border-rose-400/40 bg-rose-950/80 px-3 py-2 text-[12px] font-medium text-rose-100 backdrop-blur-md">
+            <AlertTriangle size={14} className="shrink-0" strokeWidth={2.5} />
+            <span className="min-w-0 truncate">{scanError}</span>
+          </div>
+        )}
+      </div>
 
       <BottomActionBar
         mode={mode}
@@ -273,6 +290,12 @@ export default function ShelfScannerViewfinder({ onClose, onScanComplete }: Shel
           showFlashFx ? "opacity-90" : "opacity-0"
         }`}
         aria-hidden="true"
+      />
+
+      <ManualAdjustmentDrawer
+        open={showAdjustmentDrawer}
+        onClose={() => setShowAdjustmentDrawer(false)}
+        onLogged={onInventoryAdjusted}
       />
     </div>
   );

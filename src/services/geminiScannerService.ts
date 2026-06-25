@@ -57,6 +57,10 @@ Treat the photos as one continuous sweep, not independent images:
 Respond only with JSON matching the supplied schema. Never invent a brand,
 line, or shade code you cannot actually read.`;
 
+const FULL_BOXES_ONLY_INSTRUCTION = `Completely ignore any opened, squeezed, or crumpled color tubes visible on
+the shelf. Only return counts for sealed, structurally uniform box
+packaging.`;
+
 const GENERIC_CATALOG_NOTICE = `You are matching visual text against a pre-loaded database catalog
 containing L'Oréal Majirel/Inoa, Wella Koleston/Illumina, Schwarzkopf Igora
 Royal, Goldwell Topchic, Redken Shades EQ, and Aveda Full Spectrum. Map
@@ -92,8 +96,10 @@ from this list:
 ${lines.join("\n")}`;
 }
 
-function buildSystemInstruction(catalog: CatalogEntry[]): string {
-  return `${BASE_SYSTEM_INSTRUCTION}\n\n${buildCatalogSection(catalog)}`;
+function buildSystemInstruction(catalog: CatalogEntry[], countFullBoxesOnly: boolean): string {
+  const sections = [BASE_SYSTEM_INSTRUCTION, buildCatalogSection(catalog)];
+  if (countFullBoxesOnly) sections.push(FULL_BOXES_ONLY_INSTRUCTION);
+  return sections.join("\n\n");
 }
 
 const RESPONSE_SCHEMA: Schema = {
@@ -144,6 +150,7 @@ function getClient(): GoogleGenAI {
 export async function scanShelfImages(
   images: ShelfScanImage[],
   catalog: CatalogEntry[] = [],
+  countFullBoxesOnly = false,
 ): Promise<GeminiScanResult> {
   if (images.length === 0) {
     throw new GeminiScanError("At least one image is required to scan a shelf");
@@ -162,7 +169,7 @@ export async function scanShelfImages(
       model: MODEL,
       contents: parts,
       config: {
-        systemInstruction: buildSystemInstruction(catalog),
+        systemInstruction: buildSystemInstruction(catalog, countFullBoxesOnly),
         responseMimeType: "application/json",
         responseSchema: RESPONSE_SCHEMA,
         temperature: 0,

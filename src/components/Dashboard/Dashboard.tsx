@@ -1,15 +1,16 @@
 import { RefreshCw } from "lucide-react";
-import type { InventoryItem } from "./types";
+import type { DashboardReport } from "./types";
 import InventoryHealthWidgets from "./InventoryHealthWidgets";
 import InventoryTable from "./InventoryTable";
 import ReorderSheet from "./ReorderSheet";
 
 interface DashboardProps {
-  items: InventoryItem[];
+  report: DashboardReport;
   lastScanAt: number | null;
+  onOverride: (sku: string, approved: boolean) => void;
 }
 
-export default function Dashboard({ items, lastScanAt }: DashboardProps) {
+export default function Dashboard({ report, lastScanAt, onOverride }: DashboardProps) {
   return (
     <div className="h-full overflow-y-auto bg-zinc-950 px-4 pb-8 pt-[max(env(safe-area-inset-top),20px)]">
       <header className="mb-5 flex items-center justify-between">
@@ -24,17 +25,25 @@ export default function Dashboard({ items, lastScanAt }: DashboardProps) {
       </header>
 
       <section className="mb-6">
-        <InventoryHealthWidgets items={items} />
+        <InventoryHealthWidgets
+          items={report.items}
+          stockroomFullnessPercent={report.stockroomFullnessPercent}
+          criticalCount={report.criticalCount}
+        />
       </section>
 
       <section className="mb-6">
         <h2 className="mb-2 text-sm font-semibold text-white/80">Latest Scan Results</h2>
-        <InventoryTable items={items} />
+        <InventoryTable items={report.items} />
       </section>
 
       <section>
         <h2 className="mb-2 text-sm font-semibold text-white/80">Reorder Sheet</h2>
-        <ReorderSheet items={items} />
+        <ReorderSheet
+          activeOrderSheet={report.activeOrderSheet}
+          pendingBudgetReview={report.pendingBudgetReview}
+          onOverride={onOverride}
+        />
       </section>
     </div>
   );

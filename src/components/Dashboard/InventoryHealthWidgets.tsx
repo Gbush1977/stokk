@@ -1,16 +1,20 @@
 import { Package, Activity, AlertTriangle } from "lucide-react";
 import type { InventoryItem } from "./types";
-import { getStockHealthPercent, getCriticalCount } from "./inventoryMetrics";
 import MetricCard from "./MetricCard";
 
 interface InventoryHealthWidgetsProps {
   items: InventoryItem[];
+  stockroomFullnessPercent: number;
+  criticalCount: number;
 }
 
-export default function InventoryHealthWidgets({ items }: InventoryHealthWidgetsProps) {
+export default function InventoryHealthWidgets({
+  items,
+  stockroomFullnessPercent,
+  criticalCount,
+}: InventoryHealthWidgetsProps) {
   const brandCount = new Set(items.map((item) => item.brand)).size;
-  const healthPct = getStockHealthPercent(items);
-  const criticalCount = getCriticalCount(items);
+  const healthPct = stockroomFullnessPercent;
 
   return (
     <div className="flex flex-col gap-3">

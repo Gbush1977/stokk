@@ -32,7 +32,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const catalog = await prisma.product.findMany({
       select: { brand: true, line: true, shadeCode: true },
     });
-    const result = await scanShelfImages(req.body.images, catalog);
+    const result = await scanShelfImages(req.body.images, catalog, req.body.countFullBoxesOnly ?? false);
 
     const body: ScanGeminiResponseBody = {
       items: result.items,

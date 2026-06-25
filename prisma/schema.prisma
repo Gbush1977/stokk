@@ -14,11 +14,15 @@ model Product {
   shadeCode        String   @map("shade_code")
   sku              String   @unique
   idealStockLevel  Float    @map("ideal_stock_level")
+  // Manual override so a manager can force a slow-moving shade onto the
+  // active weekly order sheet even though its usage velocity would
+  // otherwise hold it in the Pending Budget Review queue.
+  budgetOverride   Boolean  @default(false) @map("budget_override")
   createdAt        DateTime @default(now()) @map("created_at")
   updatedAt        DateTime @updatedAt @map("updated_at")
 
-  inventory Inventory?
-  usageLogs UsageLog[]
+  inventory         Inventory?
+  consumptionHistory ConsumptionHistory[]
 
   @@unique([brand, line, shadeCode])
   @@map("products")
@@ -28,6 +32,8 @@ model Inventory {
   id              String    @id @default(cuid())
   productId       String    @unique @map("product_id")
   product         Product   @relation(fields: [productId], references: [id])
+  // The "half-tube" split: a sealed, full box (fullQuantity) is tracked
+  // distinctly from a partially-used backbar tube (partialQuantity, e.g. 0.5).
   fullQuantity    Int       @default(0) @map("full_quantity")
   partialQuantity Float     @default(0) @map("partial_quantity")
   lastScannedAt   DateTime? @map("last_scanned_at")
@@ -36,7 +42,10 @@ model Inventory {
   @@map("inventory")
 }
 
-model UsageLog {
+// Every consumption event (a color-tab scan logging tubes used on a client)
+// lands here, dated and timestamped, so reorder velocity can be computed
+// from real historical usage instead of a flat par-level threshold.
+model ConsumptionHistory {
   id           String   @id @default(cuid())
   productId    String   @map("product_id")
   product      Product  @relation(fields: [productId], references: [id])
@@ -44,5 +53,5 @@ model UsageLog {
   scanMode     String   @map("scan_mode")
   recordedAt   DateTime @default(now()) @map("recorded_at")
 
-  @@map("usage_logs")
+  @@map("consumption_history")
 }

@@ -1,53 +1,65 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ShelfScannerViewfinder } from "./components/ShelfScanner";
 import type { ScanMode } from "./components/ShelfScanner";
 import { Dashboard } from "./components/Dashboard";
-import type { InventoryItem } from "./components/Dashboard";
-import { MOCK_INVENTORY } from "./components/Dashboard/mockInventory";
+import type { DashboardReport } from "./components/Dashboard";
+import { MOCK_REPORT } from "./components/Dashboard/mockInventory";
 import BottomTabBar from "./components/BottomTabBar";
 import type { AppView } from "./components/BottomTabBar";
 
-function pickRandomIndices(length: number, count: number): number[] {
-  const indices = Array.from({ length }, (_, i) => i);
-  for (let i = indices.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [indices[i], indices[j]] = [indices[j], indices[i]];
-  }
-  return indices.slice(0, Math.min(count, length));
-}
-
 export default function AppShell() {
   const [view, setView] = useState<AppView>("scanner");
-  const [inventory, setInventory] = useState<InventoryItem[]>(MOCK_INVENTORY);
+  const [report, setReport] = useState<DashboardReport>(MOCK_REPORT);
   const [lastScanAt, setLastScanAt] = useState<number | null>(null);
 
-  const handleScanComplete = useCallback((mode: ScanMode) => {
-    setInventory((prev) => {
-      const next = [...prev];
-      const targets = pickRandomIndices(next.length, 2);
-      targets.forEach((i) => {
-        const item = next[i];
-        if (mode === "shelf") {
-          // a shelf scan confirms stock was found and replenished to par
-          next[i] = { ...item, quantity: item.parLevel + Math.round(Math.random()) };
-        } else {
-          // a colour-tab scan reflects tubes consumed during a client service
-          const consumed = 1 + Math.floor(Math.random() * 2);
-          next[i] = { ...item, quantity: Math.max(item.quantity - consumed, 0) };
-        }
-      });
-      return next;
-    });
-    setLastScanAt(Date.now());
+  // Live data comes from the Postgres-backed /api/inventory/report. If that's
+  // unreachable (offline, no DB configured locally) we keep the mock dataset
+  // already in state instead of leaving the dashboard blank.
+  const refetchReport = useCallback(async () => {
+    try {
+      const response = await fetch("/api/inventory/report");
+      if (!response.ok) return;
+      const data: DashboardReport = await response.json();
+      setReport(data);
+    } catch {
+      // stay on whatever report (live or mock) is already in state
+    }
   }, []);
+
+  useEffect(() => {
+    refetchReport();
+  }, [refetchReport]);
+
+  const handleScanComplete = useCallback(
+    (_mode: ScanMode) => {
+      setLastScanAt(Date.now());
+      refetchReport();
+    },
+    [refetchReport],
+  );
+
+  const handleOverride = useCallback(
+    async (sku: string, approved: boolean) => {
+      try {
+        await fetch("/api/inventory/budget-override", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sku, approved }),
+        });
+      } finally {
+        refetchReport();
+      }
+    },
+    [refetchReport],
+  );
 
   return (
     <div className="flex h-dvh w-full flex-col overflow-hidden bg-zinc-950 font-sans text-white">
       <div className="relative flex-1 overflow-hidden">
         {view === "scanner" ? (
-          <ShelfScannerViewfinder onScanComplete={handleScanComplete} />
+          <ShelfScannerViewfinder onScanComplete={handleScanComplete} onInventoryAdjusted={refetchReport} />
         ) : (
-          <Dashboard items={inventory} lastScanAt={lastScanAt} />
+          <Dashboard report={report} lastScanAt={lastScanAt} onOverride={handleOverride} />
         )}
       </div>
       <BottomTabBar view={view} onChange={setView} />
