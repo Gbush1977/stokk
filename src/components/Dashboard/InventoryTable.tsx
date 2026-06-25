@@ -15,7 +15,7 @@ export default function InventoryTable({ items }: InventoryTableProps) {
               <th className="px-3 py-2 font-medium">Brand &amp; Line</th>
               <th className="px-3 py-2 font-medium">Shade</th>
               <th className="px-3 py-2 font-medium">Status</th>
-              <th className="px-3 py-2 text-right font-medium">Qty</th>
+              <th className="px-3 py-2 text-right font-medium">In Stock</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-white/5">
@@ -39,10 +39,10 @@ export default function InventoryTable({ items }: InventoryTableProps) {
                     </span>
                   </td>
                   <td className="px-3 py-2.5 text-right">
-                    <span className={`font-semibold ${critical ? "text-rose-300" : "text-white"}`}>
-                      {item.quantity}
-                    </span>
-                    <span className="text-white/30"> /{item.parLevel}</span>
+                    <p className={`font-semibold leading-tight ${critical ? "text-rose-300" : "text-white"}`}>
+                      {item.quantity} in stock
+                    </p>
+                    <p className="text-[11px] text-white/40">Target: {item.parLevel}</p>
                   </td>
                 </tr>
               );

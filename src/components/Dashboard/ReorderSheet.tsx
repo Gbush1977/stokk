@@ -67,7 +67,7 @@ export default function ReorderSheet({ items }: ReorderSheetProps) {
                 </span>
               </p>
               <p className="truncate text-[11px] text-white/45">
-                {item.shade} · {item.quantity}/{item.parLevel} in stock
+                {item.shade} · {item.quantity} in stock · Target {item.parLevel}
               </p>
             </div>
             <span className="shrink-0 rounded-full bg-electric/15 px-2.5 py-1 text-[12px] font-semibold text-electric">
@@ -83,7 +83,7 @@ export default function ReorderSheet({ items }: ReorderSheetProps) {
         className="flex items-center justify-center gap-2 rounded-xl bg-electric py-3 text-sm font-semibold text-white shadow-lg shadow-electric/30 transition active:scale-[0.98]"
       >
         <Download size={16} strokeWidth={2.5} />
-        Export Order Sheet
+        Download Shopping List
       </button>
     </div>
   );

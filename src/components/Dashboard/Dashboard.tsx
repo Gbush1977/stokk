@@ -28,7 +28,7 @@ export default function Dashboard({ items, lastScanAt }: DashboardProps) {
       </section>
 
       <section className="mb-6">
-        <h2 className="mb-2 text-sm font-semibold text-white/80">Shelf Scan Sync</h2>
+        <h2 className="mb-2 text-sm font-semibold text-white/80">Latest Scan Results</h2>
         <InventoryTable items={items} />
       </section>
 
