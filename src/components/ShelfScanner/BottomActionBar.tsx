@@ -13,6 +13,7 @@ interface BottomActionBarProps {
   onToggleGrid: () => void;
   onCapture: () => void;
   onSubmitBatch: () => void;
+  onUploadClick: () => void;
 }
 
 export default function BottomActionBar({
@@ -26,6 +27,7 @@ export default function BottomActionBar({
   onToggleGrid,
   onCapture,
   onSubmitBatch,
+  onUploadClick,
 }: BottomActionBarProps) {
   return (
     <div className="absolute inset-x-0 bottom-0 z-20 flex flex-col items-center gap-4 bg-gradient-to-t from-black/90 via-black/50 to-transparent px-5 pb-[max(env(safe-area-inset-bottom),20px)] pt-10">
@@ -57,8 +59,10 @@ export default function BottomActionBar({
       <div className="flex w-full items-center justify-between px-4">
         <button
           type="button"
-          aria-label="Import from gallery"
-          className="flex h-12 w-12 items-center justify-center rounded-full border border-white/10 bg-white/10 text-white backdrop-blur-md transition active:scale-90 active:bg-white/20"
+          onClick={onUploadClick}
+          disabled={isSubmittingBatch}
+          aria-label="Upload from Device"
+          className="flex h-12 w-12 items-center justify-center rounded-full border border-white/10 bg-white/10 text-white backdrop-blur-md transition active:scale-90 active:bg-white/20 disabled:opacity-50"
         >
           <Images size={20} strokeWidth={2} />
         </button>

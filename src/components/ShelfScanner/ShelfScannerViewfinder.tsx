@@ -57,6 +57,7 @@ export default function ShelfScannerViewfinder({ onClose, onScanComplete, onInve
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     let stream: MediaStream | null = null;
@@ -111,6 +112,50 @@ export default function ShelfScannerViewfinder({ onClose, onScanComplete, onInve
     const base64 = dataUrl.split(",")[1] ?? "";
     return { dataUrl, base64, mimeType };
   }, [cameraReady]);
+
+  const readFileAsFrame = useCallback((file: File): Promise<{ dataUrl: string; base64: string; mimeType: string }> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dataUrl = reader.result as string;
+        const base64 = dataUrl.split(",")[1] ?? "";
+        resolve({ dataUrl, base64, mimeType: file.type });
+      };
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(file);
+    });
+  }, []);
+
+  const handleUploadClick = useCallback(() => {
+    if (isScanning || isSubmittingBatch) return;
+    fileInputRef.current?.click();
+  }, [isScanning, isSubmittingBatch]);
+
+  // Manual photo upload fallback. Files are read into the exact same
+  // sessionFrames cache that live captures append to, so handleSubmitBatch
+  // sends them through the identical /api/scan-gemini pipeline.
+  const handleFilesSelected = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const files = Array.from(e.target.files ?? []);
+      e.target.value = "";
+      if (files.length === 0) return;
+
+      setScanError(null);
+      setGhostFrameUrl(null);
+      setOverlapLocked(false);
+
+      for (const file of files) {
+        try {
+          const frame = await readFileAsFrame(file);
+          setGhostFrameUrl(frame.dataUrl);
+          setSessionFrames((prev) => [...prev, { base64: frame.base64, mimeType: frame.mimeType }]);
+        } catch {
+          setScanError("Could not read the selected image");
+        }
+      }
+    },
+    [readFileAsFrame],
+  );
 
   const pendingFrameCount = sessionFrames.length + simulatedPendingCount;
 
@@ -238,6 +283,14 @@ export default function ShelfScannerViewfinder({ onClose, onScanComplete, onInve
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_35%,rgba(0,0,0,0.65)_100%)]" />
       </div>
       <canvas ref={canvasRef} className="hidden" aria-hidden="true" />
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/jpeg,image/jpg,image/png"
+        multiple
+        className="hidden"
+        onChange={handleFilesSelected}
+      />
 
       {ghostFrameUrl && <GhostOverlay imageUrl={ghostFrameUrl} />}
 
@@ -282,6 +335,7 @@ export default function ShelfScannerViewfinder({ onClose, onScanComplete, onInve
         onToggleGrid={() => setGridOn((v) => !v)}
         onCapture={handleCapture}
         onSubmitBatch={handleSubmitBatch}
+        onUploadClick={handleUploadClick}
       />
 
       {/* shutter flash */}

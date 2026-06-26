@@ -54,6 +54,7 @@ const CATALOG_PRODUCTS = [
   { brand: "L'Oréal Professionnel", line: "Majirel", shadeCode: "6.0" },
   { brand: "L'Oréal Professionnel", line: "Majirel", shadeCode: "7.0" },
   { brand: "L'Oréal Professionnel", line: "Majirel", shadeCode: "8.0" },
+  { brand: "L'Oréal Professionnel", line: "Majirel", shadeCode: "4.20" },
   // L'Oréal Professionnel — Majirel: Ash/Iridescent
   { brand: "L'Oréal Professionnel", line: "Majirel", shadeCode: "7.1" },
   { brand: "L'Oréal Professionnel", line: "Majirel", shadeCode: "7.11" },
