@@ -14,8 +14,8 @@ export const MOCK_INVENTORY: InventoryItem[] = [
   { sku: "sku-10", brand: "Goldwell", line: "Elumen", shade: "BL@all", fullUnits: 6, partialFraction: 0, parLevel: 5 },
 ];
 
-// Used when /api/inventory/report is unreachable (offline, no DB configured)
-// so the Dashboard always has something to render.
+// Used when Supabase is unreachable (offline, no project configured) so the
+// Dashboard always has something to render.
 export const MOCK_REPORT: DashboardReport = {
   items: MOCK_INVENTORY,
   totalActiveItems: MOCK_INVENTORY.length,

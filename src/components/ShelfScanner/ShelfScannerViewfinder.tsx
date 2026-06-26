@@ -9,6 +9,8 @@ import DetectionOverlay from "./DetectionOverlay";
 import GhostOverlay from "./GhostOverlay";
 import BottomActionBar from "./BottomActionBar";
 import ManualAdjustmentDrawer from "./ManualAdjustmentDrawer";
+import { supabase } from "../../lib/supabaseClient";
+import type { ScanGeminiResult } from "../../lib/types";
 
 interface ShelfScannerViewfinderProps {
   onClose?: () => void;
@@ -19,19 +21,6 @@ interface ShelfScannerViewfinderProps {
 interface SessionFrame {
   base64: string;
   mimeType: string;
-}
-
-interface ScanGeminiDetection {
-  brand: string;
-  line: string;
-  shadeCode: string;
-  status: string;
-  fullQuantity?: number;
-  partialQuantity?: number;
-}
-
-interface ScanGeminiResponse {
-  detections: ScanGeminiDetection[];
 }
 
 export default function ShelfScannerViewfinder({ onClose, onScanComplete, onInventoryAdjusted }: ShelfScannerViewfinderProps) {
@@ -133,7 +122,7 @@ export default function ShelfScannerViewfinder({ onClose, onScanComplete, onInve
 
   // Manual photo upload fallback. Files are read into the exact same
   // sessionFrames cache that live captures append to, so handleSubmitBatch
-  // sends them through the identical /api/scan-gemini pipeline.
+  // sends them through the identical scan-gemini Edge Function pipeline.
   const handleFilesSelected = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
       const files = Array.from(e.target.files ?? []);
@@ -171,7 +160,7 @@ export default function ShelfScannerViewfinder({ onClose, onScanComplete, onInve
 
   // Captures a single static photo and caches it client-side. This never
   // calls the network — frames just accumulate locally until the user taps
-  // "Process batch", which is the only point we hit /api/scan-gemini.
+  // "Process batch", which is the only point we hit the scan-gemini Edge Function.
   const handleCapture = useCallback(async () => {
     if (isScanning || isSubmittingBatch) return;
 
@@ -215,6 +204,9 @@ export default function ShelfScannerViewfinder({ onClose, onScanComplete, onInve
   // The single point where the aggregated photo batch is sent to the AI
   // service — one request per session instead of one per photo, since each
   // request would otherwise resend every previously captured frame too.
+  // This is the one call that can't go straight to a Supabase table: it
+  // needs the secret Gemini API key, so it's routed through the
+  // scan-gemini Supabase Edge Function instead.
   const handleSubmitBatch = useCallback(async () => {
     if (isSubmittingBatch || pendingFrameCount === 0) return;
 
@@ -234,19 +226,15 @@ export default function ShelfScannerViewfinder({ onClose, onScanComplete, onInve
     setScanError(null);
 
     try {
-      const response = await fetch("/api/scan-gemini", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ images: sessionFrames, countFullBoxesOnly }),
-      });
+      const { data, error } = await supabase.functions.invoke<ScanGeminiResult & { error?: string }>(
+        "scan-gemini",
+        { body: { images: sessionFrames, countFullBoxesOnly } },
+      );
 
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        throw new Error(payload.error ?? `Scan failed (${response.status})`);
-      }
+      if (error) throw new Error(error.message);
+      if (!data || data.error) throw new Error(data?.error ?? "Scan failed");
 
-      const { detections } = payload as ScanGeminiResponse;
-      setLiveDetectionCount(detections.length);
+      setLiveDetectionCount(data.detections.length);
       onScanComplete?.(mode);
       setSessionFrames([]);
       setSimulatedPendingCount(0);

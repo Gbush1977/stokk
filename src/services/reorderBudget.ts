@@ -1,4 +1,4 @@
-import type { ReorderDeficit } from "../../api/_lib/types.ts";
+import type { ReorderDeficit } from "../lib/types";
 
 const VELOCITY_PRIORITY: Record<ReorderDeficit["velocityTier"], number> = {
   high: 0,

@@ -1,36 +1,56 @@
-import { GoogleGenAI, Type, type Part, type Schema } from "@google/genai";
-import type { DetectionStatus, ScanDetectionPayload } from "../../api/_lib/types.ts";
+// Supabase Edge Function (Deno runtime). This is the one piece of backend
+// logic that can't live in the browser: it needs the secret GEMINI_API_KEY,
+// set via `supabase secrets set GEMINI_API_KEY=...` rather than a .env value.
+import { GoogleGenAI, Type, type Part, type Schema } from "npm:@google/genai";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
-const MODEL = process.env.GEMINI_SCAN_MODEL ?? "gemini-2.5-flash";
+const MODEL = Deno.env.get("GEMINI_SCAN_MODEL") ?? "gemini-2.5-flash";
 
-export interface ShelfScanImage {
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
+interface ShelfScanImage {
   base64: string;
   mimeType: string;
 }
 
-export interface GeminiScanItem {
+interface GeminiScanItem {
   brand: string;
   line: string;
   shade_code: string;
   calculated_qty: number;
 }
 
-export interface GeminiScanWarning {
+interface GeminiScanWarning {
   frameIndex: number;
   reason: string;
 }
 
-export interface GeminiScanResult {
+interface GeminiScanResult {
   items: GeminiScanItem[];
   warnings: GeminiScanWarning[];
 }
 
-export class GeminiScanError extends Error {}
+class GeminiScanError extends Error {}
 
-export interface CatalogEntry {
+interface CatalogEntry {
   brand: string;
   line: string;
   shadeCode: string;
+}
+
+type DetectionStatus = "full" | "partial" | "low-stock" | "analyzing";
+
+interface ScanDetectionPayload {
+  brand: string;
+  line: string;
+  shadeCode: string;
+  status: DetectionStatus;
+  fullQuantity?: number;
+  partialQuantity?: number;
 }
 
 const BASE_SYSTEM_INSTRUCTION = `You are a professional hairdressing stockroom assistant. You will receive a
@@ -138,19 +158,19 @@ let cachedClient: GoogleGenAI | undefined;
 function getClient(): GoogleGenAI {
   if (cachedClient) return cachedClient;
 
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = Deno.env.get("GEMINI_API_KEY");
   if (!apiKey) {
-    throw new GeminiScanError("GEMINI_API_KEY is not configured on the server");
+    throw new GeminiScanError("GEMINI_API_KEY is not configured for this Edge Function");
   }
 
   cachedClient = new GoogleGenAI({ apiKey });
   return cachedClient;
 }
 
-export async function scanShelfImages(
+async function scanShelfImages(
   images: ShelfScanImage[],
-  catalog: CatalogEntry[] = [],
-  countFullBoxesOnly = false,
+  catalog: CatalogEntry[],
+  countFullBoxesOnly: boolean,
 ): Promise<GeminiScanResult> {
   if (images.length === 0) {
     throw new GeminiScanError("At least one image is required to scan a shelf");
@@ -177,9 +197,7 @@ export async function scanShelfImages(
     });
     rawText = response.text;
   } catch (err) {
-    throw new GeminiScanError(
-      `Gemini request failed: ${err instanceof Error ? err.message : String(err)}`,
-    );
+    throw new GeminiScanError(`Gemini request failed: ${err instanceof Error ? err.message : String(err)}`);
   }
 
   if (!rawText) {
@@ -241,8 +259,9 @@ function normalizeResult(parsed: unknown): GeminiScanResult {
   return { items: cleanItems, warnings: cleanWarnings };
 }
 
-// Converts calculated_qty per tube into the fullQuantity/partialQuantity shape POST /api/inventory/sync expects.
-export function toInventorySyncDetections(result: GeminiScanResult): ScanDetectionPayload[] {
+// Converts calculated_qty per tube into the fullQuantity/partialQuantity
+// shape src/lib/inventory/sync.ts expects.
+function toInventorySyncDetections(result: GeminiScanResult): ScanDetectionPayload[] {
   return result.items
     .filter((item) => item.calculated_qty > 0)
     .map((item) => {
@@ -260,3 +279,81 @@ export function toInventorySyncDetections(result: GeminiScanResult): ScanDetecti
       };
     });
 }
+
+interface ScanGeminiRequestBody {
+  images: ShelfScanImage[];
+  countFullBoxesOnly?: boolean;
+}
+
+function isValidBody(body: unknown): body is ScanGeminiRequestBody {
+  if (!body || typeof body !== "object") return false;
+  const { images } = body as ScanGeminiRequestBody;
+  return (
+    Array.isArray(images) &&
+    images.length > 0 &&
+    images.every(
+      (image) =>
+        Boolean(image) &&
+        typeof image === "object" &&
+        typeof image.base64 === "string" &&
+        typeof image.mimeType === "string",
+    )
+  );
+}
+
+Deno.serve(async (req: Request) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: CORS_HEADERS });
+  }
+
+  if (req.method !== "POST") {
+    return new Response(JSON.stringify({ error: "Method not allowed" }), {
+      status: 405,
+      headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+    });
+  }
+
+  const body = await req.json().catch(() => null);
+  if (!isValidBody(body)) {
+    return new Response(
+      JSON.stringify({ error: "Expected { images: [{ base64, mimeType }, ...] }" }),
+      { status: 400, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } },
+    );
+  }
+
+  try {
+    const supabaseClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+    );
+
+    const { data: catalogRows, error: catalogError } = await supabaseClient
+      .from("products")
+      .select("brand, line, shade_code");
+
+    if (catalogError) throw new GeminiScanError(catalogError.message);
+
+    const catalog: CatalogEntry[] = (catalogRows ?? []).map((row) => ({
+      brand: row.brand,
+      line: row.line,
+      shadeCode: row.shade_code,
+    }));
+
+    const result = await scanShelfImages(body.images, catalog, body.countFullBoxesOnly ?? false);
+
+    return new Response(
+      JSON.stringify({
+        items: result.items,
+        warnings: result.warnings,
+        detections: toInventorySyncDetections(result),
+      }),
+      { headers: { ...CORS_HEADERS, "Content-Type": "application/json" } },
+    );
+  } catch (err) {
+    const status = err instanceof GeminiScanError ? 502 : 500;
+    return new Response(JSON.stringify({ error: err instanceof Error ? err.message : "Unknown error" }), {
+      status,
+      headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+    });
+  }
+});

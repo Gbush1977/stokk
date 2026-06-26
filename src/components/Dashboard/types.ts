@@ -1,4 +1,4 @@
-import type { ReorderDeficit } from "../../../api/_lib/types.ts";
+import type { ReorderDeficit } from "../../lib/types";
 
 export type StockStatus = "full" | "partial";
 

@@ -28,10 +28,10 @@ export function getCriticalCount(items: InventoryItem[]): number {
   return items.filter(isCritical).length;
 }
 
-// Fallback deficit list for the offline/no-DB mock dataset only — the live
-// dashboard gets fully predictive ReorderDeficits straight from
-// /api/inventory/report instead of computing them client-side, since real
-// velocity tiers require ConsumptionHistory this mock data doesn't have.
+// Fallback deficit list for the offline/no-Supabase mock dataset only — the
+// live dashboard gets fully predictive ReorderDeficits straight from
+// fetchInventoryReport() instead of computing them client-side, since real
+// velocity tiers require consumption_history this mock data doesn't have.
 export function buildMockReorderDeficits(items: InventoryItem[]): ReorderDeficit[] {
   return items
     .filter((item) => getStatus(item) === "partial")

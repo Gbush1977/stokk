@@ -6,21 +6,32 @@ import type { DashboardReport } from "./components/Dashboard";
 import { MOCK_REPORT } from "./components/Dashboard/mockInventory";
 import BottomTabBar from "./components/BottomTabBar";
 import type { AppView } from "./components/BottomTabBar";
+import { fetchInventoryReport } from "./lib/inventory/report";
+import { setBudgetOverride } from "./lib/inventory/budgetOverride";
 
 export default function AppShell() {
   const [view, setView] = useState<AppView>("scanner");
   const [report, setReport] = useState<DashboardReport>(MOCK_REPORT);
   const [lastScanAt, setLastScanAt] = useState<number | null>(null);
 
-  // Live data comes from the Postgres-backed /api/inventory/report. If that's
-  // unreachable (offline, no DB configured locally) we keep the mock dataset
-  // already in state instead of leaving the dashboard blank.
+  // Live data comes straight from Supabase. If that's unreachable (offline,
+  // no project configured locally) we keep the mock dataset already in
+  // state instead of leaving the dashboard blank.
   const refetchReport = useCallback(async () => {
     try {
-      const response = await fetch("/api/inventory/report");
-      if (!response.ok) return;
-      const data: DashboardReport = await response.json();
-      setReport(data);
+      const data = await fetchInventoryReport();
+      setReport({
+        ...data,
+        items: data.items.map((item) => ({
+          sku: item.sku,
+          brand: item.brand,
+          line: item.line,
+          shade: item.shadeCode,
+          fullUnits: item.fullUnits,
+          partialFraction: item.partialFraction,
+          parLevel: item.idealStockLevel,
+        })),
+      });
     } catch {
       // stay on whatever report (live or mock) is already in state
     }
@@ -41,11 +52,7 @@ export default function AppShell() {
   const handleOverride = useCallback(
     async (sku: string, approved: boolean) => {
       try {
-        await fetch("/api/inventory/budget-override", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ sku, approved }),
-        });
+        await setBudgetOverride(sku, approved);
       } finally {
         refetchReport();
       }

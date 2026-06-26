@@ -1,5 +1,3 @@
-import type { GeminiScanItem, GeminiScanWarning, ShelfScanImage } from "../../src/services/geminiScannerService.ts";
-
 export type ScanMode = "shelf" | "color-tab";
 
 export type DetectionStatus = "full" | "partial" | "low-stock" | "analyzing";
@@ -17,11 +15,6 @@ export interface ScanDetectionPayload {
   additive?: boolean;
 }
 
-export interface InventorySyncRequestBody {
-  scanMode: ScanMode;
-  detections: ScanDetectionPayload[];
-}
-
 export interface InventorySyncUpdate {
   sku: string;
   brand: string;
@@ -37,7 +30,7 @@ export interface InventorySyncUnmatched {
   shadeCode: string;
 }
 
-export interface InventorySyncResponseBody {
+export interface InventorySyncResult {
   scanMode: ScanMode;
   updated: InventorySyncUpdate[];
   unmatched: InventorySyncUnmatched[];
@@ -52,7 +45,7 @@ export interface ReorderDeficit {
   idealStockLevel: number;
   reorderQuantity: number;
   critical: boolean;
-  // Predictive analytics derived from ConsumptionHistory.
+  // Predictive analytics derived from consumption_history.
   weeksOfSupplyRemaining: number | null;
   velocityTier: "high" | "medium" | "low";
   alertLevel: "urgent" | "warning" | "none";
@@ -75,7 +68,7 @@ export interface InventoryReportItem {
   idealStockLevel: number;
 }
 
-export interface InventoryReportResponseBody {
+export interface InventoryReport {
   totalActiveItems: number;
   stockroomFullnessPercent: number;
   criticalCount: number;
@@ -89,11 +82,9 @@ export interface InventoryReportResponseBody {
   items: InventoryReportItem[];
 }
 
-export interface ScanGeminiRequestBody {
-  images: ShelfScanImage[];
-  // "Count Full Boxes Only" viewfinder toggle — when true, Gemini is
-  // instructed to ignore opened/partial tubes entirely.
-  countFullBoxesOnly?: boolean;
+export interface ShelfScanImage {
+  base64: string;
+  mimeType: string;
 }
 
 export interface ProductSummary {
@@ -103,11 +94,19 @@ export interface ProductSummary {
   shadeCode: string;
 }
 
-export interface ProductsSearchResponseBody {
-  products: ProductSummary[];
+export interface GeminiScanItem {
+  brand: string;
+  line: string;
+  shade_code: string;
+  calculated_qty: number;
 }
 
-export interface ScanGeminiResponseBody {
+export interface GeminiScanWarning {
+  frameIndex: number;
+  reason: string;
+}
+
+export interface ScanGeminiResult {
   items: GeminiScanItem[];
   warnings: GeminiScanWarning[];
   detections: ScanDetectionPayload[];

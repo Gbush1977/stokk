@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { CheckCircle2, ChevronDown, Loader2, Search, X } from "lucide-react";
-import type { ProductSummary, ProductsSearchResponseBody } from "../../../api/_lib/types.ts";
+import type { ProductSummary } from "../../lib/types";
+import { searchProducts } from "../../lib/inventory/products";
+import { syncInventory } from "../../lib/inventory/sync";
 
 interface ManualAdjustmentDrawerProps {
   open: boolean;
@@ -36,9 +38,8 @@ export default function ManualAdjustmentDrawer({ open, onClose, onLogged }: Manu
     const handle = window.setTimeout(async () => {
       setIsSearching(true);
       try {
-        const response = await fetch(`/api/products?q=${encodeURIComponent(query)}`);
-        const payload = (await response.json().catch(() => ({ products: [] }))) as ProductsSearchResponseBody;
-        setResults(payload.products ?? []);
+        const products = await searchProducts(query);
+        setResults(products);
       } catch {
         setResults([]);
       } finally {
@@ -56,29 +57,17 @@ export default function ManualAdjustmentDrawer({ open, onClose, onLogged }: Manu
     setSaveError(null);
 
     try {
-      const response = await fetch("/api/inventory/sync", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          scanMode: "shelf",
-          detections: [
-            {
-              brand: selected.brand,
-              line: selected.line,
-              shadeCode: selected.shadeCode,
-              status: "partial",
-              fullQuantity: 0,
-              partialQuantity: fraction,
-              additive: true,
-            },
-          ],
-        }),
-      });
-
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        throw new Error(payload.error ?? `Could not log partial stock (${response.status})`);
-      }
+      await syncInventory("shelf", [
+        {
+          brand: selected.brand,
+          line: selected.line,
+          shadeCode: selected.shadeCode,
+          status: "partial",
+          fullQuantity: 0,
+          partialQuantity: fraction,
+          additive: true,
+        },
+      ]);
 
       setSavedShade(selected.shadeCode);
       setSelected(null);
